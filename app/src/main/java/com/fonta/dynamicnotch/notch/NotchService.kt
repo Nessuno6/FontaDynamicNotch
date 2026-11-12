@@ -252,6 +252,14 @@ class NotchService : AccessibilityService(), LifecycleOwner, SavedStateRegistryO
         lifecycleScope.launch {
             snapshotFlow { targetSpec() }.distinctUntilChanged().collectLatest { apply(it) }
         }
+        // Updates from GitHub: looked for once a day while the notch runs, when wanted (services/Updates).
+        lifecycleScope.launch {
+            com.fonta.dynamicnotch.services.Updates.load(this@NotchService)
+            while (true) {
+                com.fonta.dynamicnotch.services.Updates.checkIfDue(this@NotchService)
+                kotlinx.coroutines.delay(60 * 60 * 1000L)
+            }
+        }
         // Android 15+ gives a window's ordinary redraws the "normal" rate (60 Hz on many screens) unless the window
         // asks for more: while the notch moves, both its windows ask for the screen's top rate, so the spring runs
         // at 120 Hz from its first frame, touch or no touch (hover, closing by itself, wings resizing).

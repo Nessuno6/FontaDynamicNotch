@@ -58,6 +58,9 @@ the notch stays centred with no empty gaps.
 - **Quick Settings tile** to switch the notch on and off.
 - **Hides in full-screen apps** together with the status bar.
 - **120 Hz animations:** while it moves, the notch asks for the screen's top refresh rate.
+- **Update check:** once a day it asks GitHub for this app's latest release and tells you with a notification when
+  there's a newer one (Settings › Advanced › Updates, where you can also check now or turn it off). That's the only
+  thing the app ever goes online for, and nothing about your device is sent.
 - Themes, springs, layout, music and timer settings, all in the app.
 
 ## Install

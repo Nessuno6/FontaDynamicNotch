@@ -14,8 +14,9 @@ android {
         applicationId = "com.fonta.dynamicnotch"
         minSdk = 31
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1"
+        // Matches the GitHub release tag (v<versionName>): the in-app update check compares them.
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     compileOptions {

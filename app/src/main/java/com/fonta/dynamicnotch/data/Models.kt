@@ -62,6 +62,8 @@ data class AppSettings(
     // General
     /** The notch at all (the Quick Settings tile switches this). */
     val notchEnabled: Boolean = true,
+    /** Look for a newer release on GitHub once a day (services/Updates). */
+    val checkUpdates: Boolean = true,
     val showNotchWhenIdle: Boolean = true,
     val hideWhenStatusBarHidden: Boolean = true,
     val hoverOpenDelay: Double = 0.10,

@@ -733,6 +733,25 @@ private fun Advanced(s: AppSettings, resumes: Int) {
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 6.dp),
         )
     }
+    Section("Updates") {
+        val scope = androidx.compose.runtime.rememberCoroutineScope()
+        val installed = remember { com.fonta.dynamicnotch.services.Updates.installed(context) }
+        androidx.compose.runtime.LaunchedEffect(Unit) { com.fonta.dynamicnotch.services.Updates.load(context) }
+        val u = com.fonta.dynamicnotch.services.Updates
+        SwitchRow("Check for updates", s.checkUpdates, "Once a day, asks GitHub for this app's latest release, and tells you with a notification when there's a newer one. Nothing about your device is sent.") { v -> set { it.copy(checkUpdates = v) } }
+        val status = when {
+            u.checking -> "Checking…"
+            u.available != null -> "Version ${u.available!!.version} is available (you have $installed)"
+            u.lastFailed -> "Version $installed · couldn't reach GitHub"
+            u.lastCheck > 0 -> "Version $installed · up to date (checked ${android.text.format.DateUtils.getRelativeTimeSpanString(u.lastCheck)})"
+            else -> "Version $installed"
+        }
+        Text(status, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 6.dp))
+        Row {
+            TextButton({ scope.launch { u.check(context, notify = false) } }, enabled = !u.checking) { Text("Check now") }
+            u.available?.let { r -> TextButton({ u.open(context, r) }) { Text("Download ${r.version}") } }
+        }
+    }
     Section("Debug") {
         SwitchRow("Show geometry outlines", s.showDebugOverlay, "Yellow: notch · green: closed shape · cyan: open shape") { v -> set { it.copy(showDebugOverlay = v) } }
         if (NotchState.serviceRunning) {
