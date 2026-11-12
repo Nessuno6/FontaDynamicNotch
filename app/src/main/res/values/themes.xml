@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The blur window behind the open notch (notch/GlassWindow.kt): see-through (the platform blurs only
+      behind a translucent window), floating, with no dim, frame, elevation, minimum width or animation.
+    -->
+    <style name="Theme.Notch.Glass" parent="@android:style/Theme.DeviceDefault">
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowFrame">@null</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowMinWidthMajor">0%</item>
+        <item name="android:windowMinWidthMinor">0%</item>
+        <item name="android:windowElevation">0dp</item>
+        <item name="android:windowCloseOnTouchOutside">false</item>
+    </style>
+</resources>
