@@ -9,7 +9,7 @@
   <a href="../../releases/latest/download/DynamicNotch.apk"><b>⬇ Download DynamicNotch.apk</b></a>
   &nbsp;·&nbsp; <a href="#install">Install</a>
   &nbsp;·&nbsp; <a href="#features">Features</a>
-  &nbsp;·&nbsp; <a href="#build">Build</a>
+  &nbsp;·&nbsp; <a href="HOW-IT-WORKS.md">How it works</a>
 </p>
 
 <p align="center">
@@ -58,11 +58,8 @@ the notch stays centred with no empty gaps.
 - **Quick Settings tile** to switch the notch on and off.
 - **Hides in full-screen apps** together with the status bar.
 - **120 Hz animations:** while it moves, the notch asks for the screen's top refresh rate.
-- **Updates:** once a day it asks GitHub for this app's latest release and tells you with a notification when
-  there's a newer one (Settings › Advanced › Updates, where you can also check now or turn it off). Tap it to
-  update from inside the app: the first time, Android asks you to let it install apps; then it downloads the APK
-  and Android's installer asks you to confirm. Checking and downloading updates is the only thing the app ever
-  goes online for, and nothing about your device is sent.
+- **Updates from inside the app:** a daily check, a notification when there's a newer release, and one tap to
+  install it (Settings › Advanced › Updates, with Check now).
 - Themes, springs, layout, music and timer settings, all in the app.
 
 ## Install
@@ -79,50 +76,26 @@ Press and hold the open notch to get back to Settings.
 
 ### Optional extras
 
-- **Hide Now Bar** needs a permission only adb can give once (or root):
+- **Hide Now Bar** needs a permission only adb can give once (or [root](HOW-IT-WORKS.md#root)):
   ```sh
   adb shell pm grant com.fonta.dynamicnotch android.permission.WRITE_SECURE_SETTINGS
   ```
 - **BentoBar in the notch** needs [BentoBar with item sharing](https://github.com/Nessuno6/bentobar/tree/notch-items)
   (see its releases): turn on **Look › Other apps** in BentoBar, then **BentoBar** in the notch's settings.
 
-## Root
+## Privacy
 
-The notch works fully without root. Root makes one thing complete: **Hide Now Bar**.
+The notch draws over the status bar through an **accessibility service**, which Android warns can "view and control
+your screen". It uses it to draw the notch and to see which windows are on screen and where (to hide in full-screen
+apps), never what's in them. **Notification access** gives it the music that's playing and your live notifications,
+which stay on the device. The app goes online for one thing only: checking GitHub for its own updates, and
+downloading one when you tap Update. Nothing about you or your device is sent anywhere.
 
-| | Without root | With root |
-|---|---|---|
-| **Status bar chip** of live notifications | hidden, after a one-time `adb` command (above) | hidden: the app grants itself the permission |
-| **Now Bar** on the lock screen | stays; switch it yourself in Settings › Lock screen and AOD › Now bar | hidden too, so live items show only in the notch |
+## How it works
 
-Both come back by themselves when you switch the notch off (its Quick Settings tile or the setting) or its service
-stops, so Samsung's own surfaces return whenever the notch isn't there to show your live items. Root is used only to
-change those two settings, when Hide Now Bar or the notch itself is switched on or off.
-
-With root, [BentoBar](https://github.com/Nessuno6/bentobar/tree/notch-items#root) also reads more for the notch's
-BentoBar wings: CPU and GPU temperatures, the apps using the CPU and memory, the battery's real cycles and health, and
-a Galaxy watch's or earbuds' levels.
-
-## How the Mac features map to Android
-
-| Mac | Android |
-|---|---|
-| Notch window over the menu bar | Accessibility overlay over the status bar and camera cutout |
-| Hover to open | Tap to open, tap outside to close; mouse and S Pen hover too |
-| Spotify now playing | Any app with a media session, through notification access |
-| System volume, output picker | Media volume; the system's own output switcher |
-| Keyboard backlight | Removed: Android has no such API |
-| File shelf, AirDrop | Shelf filled by drag and drop or the share sheet; Quick Share |
-| Hidden in full-screen apps | Hidden whenever the status bar is hidden |
-
-## Build
-
-```sh
-./gradlew :app:assembleRelease
-```
-
-Needs JDK 17+ (`JAVA_HOME` can point at Android Studio's `jbr`) and Android SDK 37. The release build is the one
-to judge animations by: Compose runs far slower in a debug build.
+How the notch draws over the status bar, balances its wings, shows live notifications and the Now Bar, shares
+BentoBar's items, keeps 120 Hz and updates itself; what root adds; how the Mac features map to Android; and how to
+build it: [HOW-IT-WORKS.md](HOW-IT-WORKS.md).
 
 ## Credits
 
