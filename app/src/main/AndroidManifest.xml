@@ -4,6 +4,8 @@
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <!-- Only for "Check for updates": this app's latest release on GitHub. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Updating from inside the app: Android asks the user to allow it the first time they update this way. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -37,6 +39,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Updating from inside the app: install permission, download, then Android's installer. -->
+        <activity
+            android:name=".settings.UpdateActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- Share-sheet target: puts shared files on the notch's shelf. -->
         <activity

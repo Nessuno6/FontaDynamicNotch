@@ -126,12 +126,14 @@ object Updates {
 
     private fun JsonObject.string(key: String) = this[key]?.jsonPrimitive?.contentOrNull
 
-    /** Opens the newer release's APK download (the browser fetches it; the system installs it), else its page. */
+    /** Updates from inside the app (settings/UpdateActivity), or opens the release page when it has no APK. */
     fun open(context: Context, r: Release) {
-        runCatching {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(r.apk ?: r.page)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        }
+        runCatching { context.startActivity(updateIntent(context, r)) }
     }
+
+    private fun updateIntent(context: Context, r: Release): Intent =
+        if (r.apk != null) com.fonta.dynamicnotch.settings.UpdateActivity.intent(context, r.apk, r.version)
+        else Intent(Intent.ACTION_VIEW, Uri.parse(r.page)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     private fun announce(context: Context, r: Release) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
@@ -139,7 +141,7 @@ object Updates {
             nm.createNotificationChannel(NotificationChannel(CHANNEL, "Updates", NotificationManager.IMPORTANCE_DEFAULT))
         }
         val download = PendingIntent.getActivity(
-            context, 3, Intent(Intent.ACTION_VIEW, Uri.parse(r.apk ?: r.page)),
+            context, 3, updateIntent(context, r),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val page = PendingIntent.getActivity(
@@ -149,7 +151,7 @@ object Updates {
         val n = Notification.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_tile_notch)
             .setContentTitle("Dynamic Notch ${r.version} is available")
-            .setContentText("You have ${installed(context)}. Tap to download the update.")
+            .setContentText("You have ${installed(context)}. Tap to update.")
             .setContentIntent(download)
             .setAutoCancel(true)
             .addAction(Notification.Action.Builder(null, "What's new", page).build())

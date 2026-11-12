@@ -749,7 +749,7 @@ private fun Advanced(s: AppSettings, resumes: Int) {
         Text(status, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 6.dp))
         Row {
             TextButton({ scope.launch { u.check(context, notify = false) } }, enabled = !u.checking) { Text("Check now") }
-            u.available?.let { r -> TextButton({ u.open(context, r) }) { Text("Download ${r.version}") } }
+            u.available?.let { r -> TextButton({ u.open(context, r) }) { Text("Update to ${r.version}") } }
         }
     }
     Section("Debug") {
