@@ -86,6 +86,23 @@ Press and hold the open notch to get back to Settings.
 - **BentoBar in the notch** needs [BentoBar with item sharing](https://github.com/Nessuno6/bentobar/tree/notch-items)
   (see its releases): turn on **Look › Other apps** in BentoBar, then **BentoBar** in the notch's settings.
 
+## Root
+
+The notch works fully without root. Root makes one thing complete: **Hide Now Bar**.
+
+| | Without root | With root |
+|---|---|---|
+| **Status bar chip** of live notifications | hidden, after a one-time `adb` command (above) | hidden: the app grants itself the permission |
+| **Now Bar** on the lock screen | stays; switch it yourself in Settings › Lock screen and AOD › Now bar | hidden too, so live items show only in the notch |
+
+Both come back by themselves when you switch the notch off (its Quick Settings tile or the setting) or its service
+stops, so Samsung's own surfaces return whenever the notch isn't there to show your live items. Root is used only to
+change those two settings, when Hide Now Bar or the notch itself is switched on or off.
+
+With root, [BentoBar](https://github.com/Nessuno6/bentobar/tree/notch-items#root) also reads more for the notch's
+BentoBar wings: CPU and GPU temperatures, the apps using the CPU and memory, the battery's real cycles and health, and
+a Galaxy watch's or earbuds' levels.
+
 ## How the Mac features map to Android
 
 | Mac | Android |
