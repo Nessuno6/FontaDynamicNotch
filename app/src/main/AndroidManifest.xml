@@ -46,7 +46,7 @@
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTop"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:theme="@style/Theme.Notch.Update" />
 
         <!-- Share-sheet target: puts shared files on the notch's shelf. -->
         <activity
