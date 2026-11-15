@@ -276,12 +276,8 @@ object MediaRepo {
     /** Opens the player that owns the session, or any music app when nothing is playing. */
     fun openPlayer(context: Context) {
         val c = controller
+        if (LiveRepo.send(c?.sessionActivity)) return
         runCatching {
-            val pi = c?.sessionActivity
-            if (pi != null) {
-                pi.send()
-                return
-            }
             val pkg = c?.packageName
             val launch = pkg?.let { context.packageManager.getLaunchIntentForPackage(it) }
                 ?: context.packageManager.getLaunchIntentForPackage("com.spotify.music")

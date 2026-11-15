@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.graphics.drawable.Icon
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.service.notification.StatusBarNotification
@@ -266,13 +267,23 @@ object LiveRepo {
         return parts.fold(0L) { acc, v -> acc * 60 + v }
     }
 
-    /** Fires a notification's own intent (open the app, or one of its buttons). */
-    fun send(intent: PendingIntent?) {
-        intent ?: return
-        runCatching {
-            val options = ActivityOptions.makeBasic()
-                .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
-            intent.send(options.toBundle())
-        }.onFailure { runCatching { intent.send() } }
+    /** Fires a notification's or media session's own intent (open the app, or one of its buttons). */
+    fun send(intent: PendingIntent?): Boolean {
+        intent ?: return false
+        return runCatching {
+            if (Build.VERSION.SDK_INT >= 34) {
+                val mode = if (Build.VERSION.SDK_INT >= 36) {
+                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS
+                } else {
+                    @Suppress("DEPRECATION")
+                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+                }
+                val options = ActivityOptions.makeBasic()
+                    .setPendingIntentBackgroundActivityStartMode(mode)
+                intent.send(options.toBundle())
+            } else {
+                intent.send()
+            }
+        }.isSuccess
     }
 }

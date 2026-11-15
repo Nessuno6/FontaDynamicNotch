@@ -54,6 +54,14 @@ data class WingLayout(val left: List<Placed>, val right: List<Placed>, val side:
             android.graphics.Rect(hit.x.toInt(), 0, (hit.x + hit.w).toInt(), height.toInt())
     }
 
+    /** Whether a tap at ([x], [y]) on the closed notch hits the album cover wing. */
+    fun isCoverAt(x: Float, y: Float, height: Float, pad: Float = 0f): Boolean {
+        val hit = cover ?: return false
+        if (y > height + pad) return false
+        val minX = if (left.lastOrNull()?.part == WingPart.Cover) hit.x - pad else hit.x
+        return x >= minX && x < hit.x + hit.w
+    }
+
     companion object {
         val EMPTY = WingLayout(emptyList(), emptyList(), 0f)
     }

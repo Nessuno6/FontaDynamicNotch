@@ -166,6 +166,10 @@ object NotchState {
     /** The BentoBar tile at a point of the closed notch, with its place on screen. */
     fun bentoTileAt(x: Float, y: Float): Pair<BentoItem, android.graphics.Rect>? = layout.tileAt(x, y, geometry.closedH)
 
+    /** Whether a tap at ([x], [y]) on the closed notch hits the album cover. */
+    fun isCoverAt(x: Float, y: Float): Boolean =
+        layout.isCoverAt(x, y, geometry.closedH, NotchGeometry.HOT_PAD_DP * geometry.density)
+
     fun open(byHover: Boolean = false, byAlarm: Boolean = false, tab: NotchTab? = null) {
         if (hiddenByFullscreen && !byAlarm) return
         if (tab != null) this.tab = tab

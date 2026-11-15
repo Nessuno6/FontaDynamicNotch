@@ -255,8 +255,14 @@ fun NotchRoot() {
                             val onNotch = insideShape(down.position)
                             // A BentoBar tile opens that item's own BentoBar popup under it, not the notch.
                             val tile = NotchState.bentoTileAt(down.position.x, down.position.y)
+                            // Tapping the album/media cover beside the closed notch opens the player directly.
+                            val onCover = NotchState.isCoverAt(down.position.x, down.position.y)
                             if (waitForUpOrCancellation(PointerEventPass.Initial) != null) {
-                                if (tile != null) BentoRepo.open(tile.first, tile.second) else if (onNotch) NotchState.open()
+                                when {
+                                    tile != null -> BentoRepo.open(tile.first, tile.second)
+                                    onNotch && onCover -> MediaRepo.openPlayer(context)
+                                    onNotch -> NotchState.open()
+                                }
                             }
                         } else if (!insideShape(down.position)) {
                             down.consume()

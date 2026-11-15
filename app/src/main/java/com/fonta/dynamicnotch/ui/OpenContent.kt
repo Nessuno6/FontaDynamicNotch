@@ -255,7 +255,14 @@ private fun MediaPanel(theme: Theme, settings: AppSettings, compact: Boolean, mo
 @Composable
 private fun TrackText(theme: Theme, settings: AppSettings, context: Context) {
     val track = MediaRepo.track
-    Column {
+    Column(
+        if (track != null) {
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(theme.buttonRadius.dp)).clickable {
+                MediaRepo.openPlayer(context)
+                NotchState.close()
+            }
+        } else Modifier,
+    ) {
         when {
             track != null -> {
                 val marquee = if (settings.marqueeEnabled) Modifier.basicMarquee(iterations = Int.MAX_VALUE) else Modifier
