@@ -49,6 +49,7 @@ import com.fonta.dynamicnotch.settings.SettingsActivity
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import rikka.shizuku.Shizuku
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -218,6 +219,14 @@ class NotchService : AccessibilityService(), LifecycleOwner, SavedStateRegistryO
         override fun onReceive(context: Context, intent: Intent) = NotchState.close()
     }
 
+    /** Re-sync Now Bar once Shizuku starts or reconnects after the accessibility service booted. */
+    private val shizukuReady = Shizuku.OnBinderReceivedListener {
+        if (SettingsStore.settings.let { it.hideNowBar && it.notchEnabled } &&
+            NowBarControl.shizukuState() == NowBarControl.ShizukuState.Ready) {
+            NowBarControl.apply(this, hide = true) {}
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         saved.performRestore(null)
@@ -249,6 +258,7 @@ class NotchService : AccessibilityService(), LifecycleOwner, SavedStateRegistryO
         NotchState.serviceRunning = true
         getSystemService(DisplayManager::class.java).registerDisplayListener(displayListener, main)
         registerReceiver(screenOff, android.content.IntentFilter(Intent.ACTION_SCREEN_OFF))
+        Shizuku.addBinderReceivedListener(shizukuReady)
 
         lifecycleScope.launch {
             snapshotFlow { SettingsStore.settings }.distinctUntilChanged().collectLatest { recomputeGeometry(); checkStatusBar() }
@@ -361,7 +371,8 @@ class NotchService : AccessibilityService(), LifecycleOwner, SavedStateRegistryO
                 DragEvent.ACTION_DRAG_STARTED -> {
                     openedByDrag = false
                     dropped = false
-                    !ShelfStore.draggingOut
+                    // Ignore drags initiated from our own shelf so they fall through to apps underneath.
+                    e.localState !== ShelfStore
                 }
                 DragEvent.ACTION_DRAG_ENTERED, DragEvent.ACTION_DRAG_LOCATION -> {
                     if (!NotchState.isOpen) {
@@ -380,7 +391,6 @@ class NotchService : AccessibilityService(), LifecycleOwner, SavedStateRegistryO
                     dropped
                 }
                 DragEvent.ACTION_DRAG_ENDED -> {
-                    ShelfStore.draggingOut = false
                     if (openedByDrag && !dropped) NotchState.close()
                     true
                 }
@@ -485,6 +495,7 @@ class NotchService : AccessibilityService(), LifecycleOwner, SavedStateRegistryO
         NotchState.close(force = true)
         runCatching { getSystemService(DisplayManager::class.java).unregisterDisplayListener(displayListener) }
         runCatching { unregisterReceiver(screenOff) }
+        runCatching { Shizuku.removeBinderReceivedListener(shizukuReady) }
         view?.let { runCatching { wm.removeView(it) } }
         view = null
         BentoRepo.claim(emptyList(), false)

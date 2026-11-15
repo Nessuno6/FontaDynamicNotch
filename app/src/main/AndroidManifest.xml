@@ -9,7 +9,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- "Hide Now Bar": granted once over adb, or by the app itself where it has root. -->
+    <!-- "Hide Now Bar": granted via Shizuku, once over adb, or by the app itself where it has root. -->
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         xmlns:tools="http://schemas.android.com/tools"
@@ -119,5 +119,13 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
     </application>
 </manifest>

@@ -15,8 +15,8 @@ android {
         minSdk = 31
         targetSdk = 37
         // Matches the GitHub release tag (v<versionName>): the in-app update check compares them.
-        versionCode = 5
-        versionName = "0.2.3"
+        versionCode = 6
+        versionName = "0.2.4"
     }
 
     compileOptions {
@@ -25,6 +25,7 @@ android {
     }
     buildFeatures {
         compose = true
+        aidl = true
     }
     buildTypes {
         // Compose runs far slower in a debuggable build; this is the one to judge animations by. Signed with the
@@ -48,4 +49,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     // Lets the notch window (not an Activity) take the read permission of files dropped on it.
     implementation(libs.hiddenapibypass)
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
 }

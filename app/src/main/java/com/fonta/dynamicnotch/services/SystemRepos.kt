@@ -272,9 +272,6 @@ object ShelfStore {
         io.execute { dir.deleteRecursively(); dir.mkdirs() }
     }
 
-    /** True while one of the shelf's own files is being dragged out (so the notch does not take it back). */
-    var draggingOut = false
-
     private class Incoming(val name: String, val mime: String, val stream: java.io.InputStream)
 
     /** Name, type and an open stream for [uri]. Opening is quick; the copy happens later, off the main thread. */

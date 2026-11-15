@@ -86,7 +86,7 @@ Press and hold the open notch to get back to Settings.
 
 ### Optional extras
 
-- **Hide Now Bar** needs a permission only adb can give once (or [root](HOW-IT-WORKS.md#root)):
+- **Hide Now Bar** works on-device with [Shizuku](https://shizuku.rikka.app/) or [root](HOW-IT-WORKS.md#shizuku-and-root) (no computer needed — hides both the lock-screen Now Bar and the status-bar chip), or over adb:
   ```sh
   adb shell pm grant com.fonta.dynamicnotch android.permission.WRITE_SECURE_SETTINGS
   ```
@@ -104,7 +104,7 @@ downloading one when you tap Update. Nothing about you or your device is sent an
 ## How it works
 
 How the notch draws over the status bar, balances its wings, shows live notifications and the Now Bar, shares
-BentoBar's items, keeps 120 Hz and updates itself; what root adds; how the Mac features map to Android; and how to
+BentoBar's items, keeps 120 Hz and updates itself; what Shizuku and root add; how the Mac features map to Android; and how to
 build it: [HOW-IT-WORKS.md](HOW-IT-WORKS.md).
 
 ## Credits

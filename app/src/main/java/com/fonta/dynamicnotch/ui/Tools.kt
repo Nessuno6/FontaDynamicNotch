@@ -6,7 +6,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.draganddrop.dragAndDropSource
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,16 +35,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draganddrop.DragAndDropSourceModifierNode
 import androidx.compose.ui.draganddrop.DragAndDropTransferData
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.input.pointer.SuspendingPointerInputModifierNode
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.node.DelegatingNode
+import androidx.compose.ui.node.LayoutAwareModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toSize
 import com.fonta.dynamicnotch.data.AppSettings
 import com.fonta.dynamicnotch.data.Theme
 import com.fonta.dynamicnotch.data.TimeFormat
@@ -270,25 +281,32 @@ private fun DropZone(icon: Int, label: String, theme: Theme, enabled: Boolean, m
 @Composable
 private fun ShelfTile(item: ShelfItem, theme: Theme) {
     val selected = item.id in ShelfStore.selected
+    val dragLayer = rememberGraphicsLayer()
     Column(
         Modifier.width(72.dp).clip(RoundedCornerShape(10.dp))
             .background(if (selected) Color.White.copy(alpha = 0.18f) else Color.Transparent)
             .border(1.dp, if (selected) theme.accent.copy(alpha = 0.7f) else Color.Transparent, RoundedCornerShape(10.dp))
-            .dragAndDropSource { _ ->
-                // Close so the drop lands on the app underneath, not on the notch window.
-                ShelfStore.draggingOut = true
-                NotchState.close()
-                DragAndDropTransferData(
-                    ShelfStore.dragClip(item),
-                    flags = View.DRAG_FLAG_GLOBAL or View.DRAG_FLAG_GLOBAL_URI_READ,
-                )
+            .drawWithContent {
+                dragLayer.record { this@drawWithContent.drawContent() }
+                drawLayer(dragLayer)
             }
-            .pointerInput(item.id) {
-                detectTapGestures(
-                    onTap = { ShelfStore.toggleSelected(item.id) },
-                    onDoubleTap = { ShelfStore.open(item); NotchState.close() },
-                )
-            }
+            .shelfTileGestures(
+                dragLayer = dragLayer,
+                onTap = { ShelfStore.toggleSelected(item.id) },
+                onDoubleTap = { ShelfStore.open(item); NotchState.close() },
+                onTransferData = {
+                    // Identify our own drag session via localState so NotchService ignores it without shared mutable flags.
+                    DragAndDropTransferData(
+                        ShelfStore.dragClip(item),
+                        localState = ShelfStore,
+                        flags = View.DRAG_FLAG_GLOBAL or View.DRAG_FLAG_GLOBAL_URI_READ,
+                    )
+                },
+                onTransferResult = { started ->
+                    // Close only after View.startDragAndDrop accepts the transfer so the overlay keeps touch focus until drag begins.
+                    if (started) NotchState.close()
+                },
+            )
             .padding(5.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -301,5 +319,83 @@ private fun ShelfTile(item: ShelfItem, theme: Theme) {
         }
         Spacer(Modifier.height(3.dp))
         Label(item.name, theme.primaryText, 10.sp)
+    }
+}
+
+/**
+ * Unifies tap, double-tap, and long-press drag-out on one pointer-input node because Compose's
+ * stock Modifier.dragAndDropSource also calls detectTapGestures and consumes ACTION_DOWN, which
+ * would otherwise starve an inner tap detector.
+ */
+private fun Modifier.shelfTileGestures(
+    dragLayer: GraphicsLayer,
+    onTap: () -> Unit,
+    onDoubleTap: () -> Unit,
+    onTransferData: () -> DragAndDropTransferData,
+    onTransferResult: (Boolean) -> Unit,
+): Modifier = this then ShelfTileGestureElement(dragLayer, onTap, onDoubleTap, onTransferData, onTransferResult)
+
+private data class ShelfTileGestureElement(
+    val dragLayer: GraphicsLayer,
+    val onTap: () -> Unit,
+    val onDoubleTap: () -> Unit,
+    val onTransferData: () -> DragAndDropTransferData,
+    val onTransferResult: (Boolean) -> Unit,
+) : ModifierNodeElement<ShelfTileGestureNode>() {
+    override fun create() = ShelfTileGestureNode(dragLayer, onTap, onDoubleTap, onTransferData, onTransferResult)
+
+    override fun update(node: ShelfTileGestureNode) {
+        node.dragLayer = dragLayer
+        node.onTap = onTap
+        node.onDoubleTap = onDoubleTap
+        node.onTransferData = onTransferData
+        node.onTransferResult = onTransferResult
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "shelfTileGestures"
+    }
+}
+
+private class ShelfTileGestureNode(
+    var dragLayer: GraphicsLayer,
+    var onTap: () -> Unit,
+    var onDoubleTap: () -> Unit,
+    var onTransferData: () -> DragAndDropTransferData,
+    var onTransferResult: (Boolean) -> Unit,
+) : DelegatingNode(), LayoutAwareModifierNode {
+    private var size = IntSize.Zero
+
+    private val dragNode = delegate(
+        DragAndDropSourceModifierNode {
+            val started = startDragAndDropTransfer(
+                transferData = onTransferData(),
+                decorationSize = size.toSize(),
+                drawDragDecoration = { drawLayer(dragLayer) },
+            )
+            onTransferResult(started)
+        }
+    )
+
+    init {
+        delegate(
+            SuspendingPointerInputModifierNode {
+                detectTapGestures(
+                    onTap = { onTap() },
+                    onDoubleTap = { onDoubleTap() },
+                    onLongPress = { offset ->
+                        if (dragNode.isRequestDragAndDropTransferRequired) {
+                            dragNode.requestDragAndDropTransfer(offset)
+                        }
+                    },
+                )
+            }
+        )
+    }
+
+    override fun onPlaced(coordinates: LayoutCoordinates) = dragNode.onPlaced(coordinates)
+    override fun onRemeasured(size: IntSize) {
+        this.size = size
+        dragNode.onRemeasured(size)
     }
 }

@@ -1,6 +1,6 @@
 # How Fonta's Dynamic Notch for Android works
 
-The details behind [the README](README.md): how the notch does what it does on Android, what root adds, how the Mac
+The details behind [the README](README.md): how the notch does what it does on Android, what Shizuku and root add, how the Mac
 app's features map to Android, and how to build it.
 
 ## Under the hood
@@ -70,18 +70,18 @@ repository's latest release: one request, carrying nothing about the device. A n
 notification. Tapping it opens the update screen, the device's own dialog (One UI's on Samsung): the first time,
 Android asks you to let the app install apps; then the APK is downloaded and handed to Android's package installer.
 
-## Root
+## Shizuku and root
 
-The notch works fully without root. Root makes one thing complete: **Hide Now Bar**.
+The notch works fully without Shizuku or root. Either **Shizuku** (on-device via Wireless Debugging, no root or PC required) or **root** makes one thing complete: **Hide Now Bar**.
 
-| | Without root | With root |
+| | With `adb pm grant` only | With Shizuku or root |
 |---|---|---|
-| **Status bar chip** of live notifications | hidden, after a one-time `adb` command ([Optional extras](README.md#optional-extras)) | hidden: the app grants itself the permission |
-| **Now Bar** on the lock screen | stays; switch it yourself in Settings › Lock screen and AOD › Now bar | hidden too, so live items show only in the notch |
+| **Status bar chip** of live notifications | hidden, after the one-time `adb` command ([Optional extras](README.md#optional-extras)) | hidden: the app grants itself the permission |
+| **Now Bar** on the lock screen | stays; switch it yourself in Settings › Lock screen and AOD › Now bar (or via `adb shell settings put system now_bar_enabled 0`) | hidden too, so live items show only in the notch |
 
 Both come back by themselves when you switch the notch off (its Quick Settings tile or the setting) or its service
-stops, so Samsung's own surfaces return whenever the notch isn't there to show your live items. Root is used only to
-change those two settings, when Hide Now Bar or the notch itself is switched on or off.
+stops, so Samsung's own surfaces return whenever the notch isn't there to show your live items. Shizuku / root is used
+only to change those two settings, when Hide Now Bar or the notch itself is switched on or off.
 
 With root, [BentoBar](https://github.com/Nessuno6/bentobar/blob/notch-items/HOW-IT-WORKS.md#root) also reads more for
 the notch's BentoBar wings: CPU and GPU temperatures, the apps using the CPU and memory, the battery's real cycles and

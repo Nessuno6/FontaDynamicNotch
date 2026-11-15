@@ -54,6 +54,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -92,6 +94,7 @@ import com.fonta.dynamicnotch.services.MediaRepo
 import com.fonta.dynamicnotch.services.NowBarControl
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import rikka.shizuku.Shizuku
 import kotlin.math.roundToInt
 
 class SettingsActivity : ComponentActivity() {
@@ -108,6 +111,7 @@ class SettingsActivity : ComponentActivity() {
 }
 
 private val tabs = listOf("General", "Appearance", "Layout", "Animations", "Music", "Timers", "Counters", "Advanced")
+private const val SHIZUKU_REQ_NOW_BAR = 1001
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -333,14 +337,79 @@ private fun General(s: AppSettings, resumes: Int) {
         SwitchRow("Show all live notifications in the notch", s.showLive, "Now Bar items, Live Updates, calls, timers, downloads. Uses the same notification access as the music controls.") { v -> set { it.copy(showLive = v) } }
         val context = LocalContext.current
         var nowBarError by remember { mutableStateOf<String?>(null) }
-        SwitchRow("Hide Now Bar", s.hideNowBar, "Turns off Samsung's Now Bar on the lock screen and its chip in the status bar, so nothing shows twice.") { v ->
-            NowBarControl.apply(context, hide = v) { problem ->
-                nowBarError = problem
-                // Keep the switch on even when only the chip could be hidden; off if nothing could.
-                if (problem == null || problem != NowBarControl.HELP) set { it.copy(hideNowBar = v) }
+        var requestedHide by remember { mutableStateOf<Boolean?>(null) }
+        var waitingPermission by remember { mutableStateOf<Boolean?>(null) }
+        var applyingNowBar by remember { mutableStateOf(false) }
+        var shizukuTick by remember { mutableIntStateOf(0) }
+
+        fun applyNowBar(hide: Boolean, promptShizuku: Boolean) {
+            if (applyingNowBar) return
+            applyingNowBar = true
+            requestedHide = hide
+            val skipSu = promptShizuku && NowBarControl.shizukuState() == NowBarControl.ShizukuState.NeedsPermission
+            NowBarControl.apply(context, hide = hide, skipSu = skipSu) { result ->
+                applyingNowBar = false
+                val shizuku = NowBarControl.shizukuState()
+                if (result.problem != null && promptShizuku && shizuku == NowBarControl.ShizukuState.NeedsPermission) {
+                    waitingPermission = hide
+                    runCatching { Shizuku.requestPermission(SHIZUKU_REQ_NOW_BAR) }.onFailure {
+                        waitingPermission = null
+                        if (result.chipOk) set { it.copy(hideNowBar = hide) }
+                        nowBarError = result.problem
+                    }
+                } else {
+                    // Keep the switch on even when only the chip could be hidden; off if nothing could.
+                    if (result.problem == null || result.chipOk) set { it.copy(hideNowBar = hide) }
+                    nowBarError = result.problem
+                    if (result.problem == null) requestedHide = null
+                }
             }
         }
-        nowBarError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 6.dp)) }
+
+        DisposableEffect(Unit) {
+            val permListener = Shizuku.OnRequestPermissionResultListener { requestCode, _ ->
+                val pending = waitingPermission ?: return@OnRequestPermissionResultListener
+                if (requestCode != SHIZUKU_REQ_NOW_BAR) return@OnRequestPermissionResultListener
+                waitingPermission = null
+                applyNowBar(pending, promptShizuku = false)
+            }
+            val binderListener = Shizuku.OnBinderReceivedListener { shizukuTick++ }
+            val deadListener = Shizuku.OnBinderDeadListener { shizukuTick++ }
+            Shizuku.addRequestPermissionResultListener(permListener)
+            Shizuku.addBinderReceivedListenerSticky(binderListener)
+            Shizuku.addBinderDeadListener(deadListener)
+            onDispose {
+                Shizuku.removeRequestPermissionResultListener(permListener)
+                Shizuku.removeBinderReceivedListener(binderListener)
+                Shizuku.removeBinderDeadListener(deadListener)
+            }
+        }
+
+        LaunchedEffect(shizukuTick, resumes) {
+            val pending = requestedHide
+            if (pending != null && nowBarError != null && !applyingNowBar && NowBarControl.shizukuState() == NowBarControl.ShizukuState.Ready) {
+                applyNowBar(pending, promptShizuku = false)
+            }
+        }
+
+        SwitchRow("Hide Now Bar", s.hideNowBar, "Turns off Samsung's Now Bar on the lock screen and its chip in the status bar, so nothing shows twice.") { v ->
+            applyNowBar(v, promptShizuku = true)
+        }
+        nowBarError?.let { err ->
+            @Suppress("UNUSED_EXPRESSION") shizukuTick
+            @Suppress("UNUSED_EXPRESSION") resumes
+            Text(err, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 2.dp, bottom = 4.dp))
+            when (NowBarControl.shizukuState()) {
+                NowBarControl.ShizukuState.NeedsPermission -> TextButton({
+                    val target = requestedHide ?: !s.hideNowBar
+                    waitingPermission = target
+                    runCatching { Shizuku.requestPermission(SHIZUKU_REQ_NOW_BAR) }.onFailure { waitingPermission = null }
+                }) { Text("Allow in Shizuku") }
+                NowBarControl.ShizukuState.Ready -> TextButton({ applyNowBar(requestedHide ?: s.hideNowBar, promptShizuku = false) }) { Text("Retry with Shizuku") }
+                NowBarControl.ShizukuState.PermissionDenied, NowBarControl.ShizukuState.Unavailable ->
+                    if (NowBarControl.isShizukuInstalled(context)) TextButton({ NowBarControl.openShizuku(context) }) { Text("Open Shizuku") }
+            }
+        }
         if (s.showLive) {
             SwitchRow("Include ordinary ongoing notifications", s.liveIncludeOngoing, "Anything ongoing with a clock or a progress bar, not only Now Bar items.") { v -> set { it.copy(liveIncludeOngoing = v) } }
             for (pkg in s.hiddenLivePackages) {
