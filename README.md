@@ -23,6 +23,16 @@ Dynamic Island for the MacBook notch. The Mac app lives on this fork's `main` br
 `android` branch. It is built and tested on a Samsung tablet and phone with One UI 9 (Android 17), and runs on any
 Android 12 or newer.
 
+<p align="center">
+  <img src="docs/screenshots/closed.png" alt="Closed notch with blurred album cover, music waves, and BentoBar wings" width="600">
+</p>
+
+| 🎵 Now Playing | 📁 Files | 🧩 BentoBar |
+|---|---|---|
+| ![Open notch on the Home tab showing blurred album cover, song title and artist, waveform scrubber, volume slider, and playback controls](docs/screenshots/home.png) | ![File shelf tab with Quick Share and Clear all actions](docs/screenshots/files.png) | ![BentoBar tab showing Heat, Device batteries, Battery details, CPU load, Memory, and Displays tiles](docs/screenshots/bento.png) |
+
+*Shown with Liquid Glass on One UI 9. Song title, artist and cover are blurred.*
+
 ## Features
 
 **The closed notch** sits over the status bar, centred on the camera, and grows wings for what's going on. It is
