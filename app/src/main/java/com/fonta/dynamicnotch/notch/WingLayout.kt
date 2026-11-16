@@ -10,6 +10,8 @@ import com.fonta.dynamicnotch.services.BentoItem
 import com.fonta.dynamicnotch.services.BentoRepo
 import com.fonta.dynamicnotch.services.LiveItem
 import com.fonta.dynamicnotch.services.LiveRepo
+import com.fonta.dynamicnotch.services.Lyrics
+import com.fonta.dynamicnotch.services.LyricsRepo
 import com.fonta.dynamicnotch.services.MediaRepo
 import kotlin.math.abs
 import kotlin.math.max
@@ -22,6 +24,10 @@ sealed interface WingPart {
     /** The album cover's place (the cover itself is drawn by NotchRoot, so it can grow into the open panel). */
     data object Cover : WingPart { override val key = "cover" }
     data object Bars : WingPart { override val key = "bars" }
+    /** The line of the lyrics being sung, centred over the notch ([WingLayout.middle]). */
+    data object Lyric : WingPart { override val key = "lyric" }
+    /** Empty room next to the notch: the half of the lyric's area that reaches past it, on each side. */
+    data object LyricRoom : WingPart { override val key = "lyric-room" }
     /** The notch's own running timer or stopwatch: its time. */
     data object Time : WingPart { override val key = "time" }
     /** The timer's icon on the other side, when the time is split across the notch. */
@@ -38,10 +44,13 @@ sealed interface WingPart {
 /** A part with its place: [x] is its left edge on screen, [w] its width. */
 data class Placed(val part: WingPart, val x: Float, val w: Float)
 
-/** Everything beside the closed notch, measured and placed. Both sides reach [side] px from the notch. */
-data class WingLayout(val left: List<Placed>, val right: List<Placed>, val side: Float) {
+/**
+ * Everything beside the closed notch, measured and placed. Both sides reach [side] px from the notch. [middle] is
+ * the lyric, centred over the notch and reaching into the [WingPart.LyricRoom] on either side.
+ */
+data class WingLayout(val left: List<Placed>, val right: List<Placed>, val side: Float, val middle: Placed? = null) {
     val visible: Boolean get() = left.isNotEmpty() || right.isNotEmpty()
-    val all: List<Placed> get() = left + right
+    val all: List<Placed> get() = left + right + listOfNotNull(middle)
     val cover: Placed? get() = left.firstOrNull { it.part == WingPart.Cover }
     /** Something shown counts the seconds, so the closed notch needs a clock. */
     val ticks: Boolean get() = all.any { it.part is WingPart.Time || it.part is WingPart.LiveText || (it.part is WingPart.Live && it.part.item.chronoAt != null) }
@@ -101,6 +110,29 @@ object WingLayouts {
         return paint.measureText(digits.replace(text, "0"))
     }
 
+    const val LYRIC_SP = 13f
+
+    /** The synced lyrics to show beside the closed notch now, or null (setting off, paused, none for this song). */
+    fun wingLyrics(): Lyrics? {
+        val s = SettingsStore.settings
+        if (!s.showLyrics || !s.lyricsInBar || !MediaRepo.isPlaying) return null
+        val t = MediaRepo.track ?: return null
+        return LyricsRepo.currentFor(t)?.takeIf { it.synced.isNotEmpty() }
+    }
+
+    // The lyric's area is as wide as the song's longest line, measured once per song: it stays put, centred over the
+    // notch, while the lines change inside it.
+    private var longestOf: Lyrics? = null
+    private var longest = 0f
+
+    private fun longestLine(l: Lyrics, density: Float): Float {
+        if (longestOf !== l) {
+            longestOf = l
+            longest = l.synced.maxOfOrNull { textWidth(it.text, density, LYRIC_SP) } ?: 0f
+        }
+        return longest
+    }
+
     private class Side(val parts: ArrayList<WingPart> = ArrayList(), var width: Float = 0f)
 
     fun compute(): WingLayout {
@@ -114,6 +146,13 @@ object WingLayouts {
         val icon = 18 * d
         val count = s.musicBarCount.coerceIn(3, 8)
         val barsH = max(8 * d, h - 18 * d)
+        val room = g.screenW / 2f - g.notchW / 2 - 8 * d
+        val showsTime = ToolsStore.soonestRunning != null || ToolsStore.state.stopwatch.isRunning
+        // The lyric, while nothing else needs the room: a timer or a live item takes it back.
+        val lyrics = wingLyrics()?.takeIf { MediaRepo.isMusicActive && !showsTime && LiveRepo.items.isEmpty() }
+        val coverAndBars = h + (if (s.oneUiWaves) WAVE_DP else count * 5 - 2) * d + 2 * min((h - barsH) / 2, 10 * d)
+        val lyricW = lyrics?.let { max(g.notchW, longestLine(it, d) + 2 * pad).coerceAtMost(min(520 * d, g.notchW + 2 * (room - coverAndBars))) } ?: 0f
+        val lyricRoom = max(0f, (lyricW - g.notchW) / 2)
 
         fun width(p: WingPart): Float = when (p) {
             WingPart.Cover -> h
@@ -123,6 +162,8 @@ object WingLayouts {
                 2 * 3 * d + 2 * 6 * d + 16 * d + (if (text != null) 4 * d + textWidth(text, d, 12f) else 0f)
             }
             WingPart.Bars -> (if (s.oneUiWaves) WAVE_DP else count * 5 - 2) * d + 2 * min((h - barsH) / 2, 10 * d)
+            WingPart.Lyric -> lyricW
+            WingPart.LyricRoom -> lyricRoom
             WingPart.Time -> 2 * pad + textWidth(timeText(now) ?: "0:00", d)
             WingPart.TimeIcon, is WingPart.LiveIcon -> 2 * pad + icon
             is WingPart.Live -> {
@@ -132,7 +173,6 @@ object WingLayouts {
             is WingPart.LiveText -> 2 * pad + textWidth(p.item.wingText(now) ?: "", d)
         }
 
-        val room = g.screenW / 2f - g.notchW / 2 - 8 * d
         // Fixed places: the cover next to the notch on the left, BentoBar's tiles at the outer ends.
         val (tilesL, tilesR) = if (s.bentoInNotch) {
             val all = BentoRepo.items
@@ -141,16 +181,21 @@ object WingLayouts {
         } else emptyList<BentoItem>() to emptyList()
         val left = Side()
         val right = Side()
+        if (lyrics != null) {
+            // The lyric's room next to the notch on both sides, then the cover on its left and the bars on its right.
+            left.parts += WingPart.LyricRoom; left.width += lyricRoom
+            right.parts += WingPart.LyricRoom; right.width += lyricRoom
+            right.parts += WingPart.Bars; right.width += width(WingPart.Bars)
+        }
         if (MediaRepo.isMusicActive) { left.parts += WingPart.Cover; left.width += width(WingPart.Cover) }
         val tileWidthL = tilesL.sumOf { width(WingPart.Tile(it)).toDouble() }.toFloat()
         val tileWidthR = tilesR.sumOf { width(WingPart.Tile(it)).toDouble() }.toFloat()
 
         // Parts that may go either side, most important first.
-        val showsTime = ToolsStore.soonestRunning != null || ToolsStore.state.stopwatch.isRunning
         val flexible = ArrayList<WingPart>()
         if (showsTime) flexible += WingPart.Time
         LiveRepo.items.forEach { flexible += WingPart.Live(it) }
-        if (MediaRepo.isMusicActive && flexible.isEmpty()) flexible += WingPart.Bars
+        if (MediaRepo.isMusicActive && flexible.isEmpty() && lyrics == null) flexible += WingPart.Bars
         for (p in flexible) {
             val w = width(p)
             val first = if (left.width + tileWidthL < right.width + tileWidthR) left else right
@@ -197,21 +242,23 @@ object WingLayouts {
             // close to the border as on the other side. The music bars keep their size: widened, they'd only leave
             // a hole beside them.
             val lack = side - sideOf.width
-            val words = sideOf.parts.any { it !is WingPart.Tile && it != WingPart.Cover && it != WingPart.Bars }
-            fun stretches(p: WingPart) =
-                if (words) p !is WingPart.Tile && p != WingPart.Cover && p != WingPart.Bars else p is WingPart.Tile
+            fun hasWords(p: WingPart) = p !is WingPart.Tile && p != WingPart.Cover && p != WingPart.Bars && p != WingPart.LyricRoom
+            val words = sideOf.parts.any(::hasWords)
+            fun stretches(p: WingPart) = if (words) hasWords(p) else p is WingPart.Tile
             val stretchy = sideOf.parts.count(::stretches)
             val grow = if (stretchy > 0) lack / stretchy else 0f
-            val gap = if (stretchy > 0) 0f else lack / sideOf.parts.size
+            // (Not before the lyric's room: the lyric is centred on the notch, its room right beside it.)
+            val gap = if (stretchy > 0) 0f else lack / sideOf.parts.count { it != WingPart.LyricRoom }
             var cursor = if (isLeft) g.centerX - g.notchW / 2 else g.centerX + g.notchW / 2
             return sideOf.parts.map { p ->
-                cursor = if (isLeft) cursor - gap else cursor + gap
+                if (p != WingPart.LyricRoom) cursor = if (isLeft) cursor - gap else cursor + gap
                 val w = width(p) + (if (stretches(p)) grow else 0f)
                 val x = if (isLeft) cursor - w else cursor
                 cursor = if (isLeft) cursor - w else cursor + w
                 Placed(p, x, w)
             }
         }
-        return WingLayout(place(left, true), place(right, false), side)
+        val middle = lyrics?.let { Placed(WingPart.Lyric, g.centerX - lyricW / 2, lyricW) }
+        return WingLayout(place(left, true), place(right, false), side, middle)
     }
 }

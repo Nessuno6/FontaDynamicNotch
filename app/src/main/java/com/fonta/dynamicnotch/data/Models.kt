@@ -105,6 +105,10 @@ data class AppSettings(
     /** One UI 9's waves instead of the bars: a moving wave beside the closed notch and a wavy progress bar. */
     val oneUiWaves: Boolean = false,
     val marqueeEnabled: Boolean = true,
+    /** Synced lyrics from LRCLIB between the cover and the progress bar. Off by default: it sends the song to lrclib.net. */
+    val showLyrics: Boolean = false,
+    /** Also the line being sung beside the closed notch (needs [showLyrics]); lyrics are then fetched for every song played. */
+    val lyricsInBar: Boolean = false,
     // Timers
     val alarmSoundUri: String = "",
     val alarmVolume: Double = 1.0,

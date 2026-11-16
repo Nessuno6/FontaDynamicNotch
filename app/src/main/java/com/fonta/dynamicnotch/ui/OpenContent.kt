@@ -3,8 +3,14 @@ package com.fonta.dynamicnotch.ui
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
@@ -57,6 +63,7 @@ import com.fonta.dynamicnotch.notch.NotchState
 import com.fonta.dynamicnotch.services.AudioRepo
 import com.fonta.dynamicnotch.services.BrightnessRepo
 import com.fonta.dynamicnotch.services.LiveRepo
+import com.fonta.dynamicnotch.services.LyricsRepo
 import com.fonta.dynamicnotch.services.MediaRepo
 import com.fonta.dynamicnotch.services.OutputKind
 import kotlinx.coroutines.delay
@@ -231,7 +238,8 @@ private fun MediaPanel(theme: Theme, settings: AppSettings, compact: Boolean, mo
                     TrackText(theme, settings, context)
                 }
             }
-            Spacer(Modifier.weight(1f))
+            if (settings.showLyrics && track != null) LyricsRow(theme, Modifier.weight(1f).fillMaxWidth().padding(horizontal = 4.dp))
+            else Spacer(Modifier.weight(1f))
             if (track != null) {
                 ProgressRow(theme)
                 Controls(theme, Modifier.fillMaxWidth())
@@ -243,6 +251,7 @@ private fun MediaPanel(theme: Theme, settings: AppSettings, compact: Boolean, mo
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
                 VolumeRow(theme, showName = true)
                 TrackText(theme, settings, context)
+                if (settings.showLyrics && track != null) LyricsRow(theme, Modifier.fillMaxWidth().height(36.dp))
                 if (track != null) {
                     ProgressRow(theme)
                     Controls(theme, Modifier.fillMaxWidth())
@@ -313,6 +322,55 @@ private fun VolumeRow(theme: Theme, showName: Boolean) {
         ) {
             Glyph(out, null, tint = theme.iconColor, modifier = Modifier.size(16.dp))
             if (showName) Label(AudioRepo.outputName, theme.primaryText, 11.sp, modifier = Modifier.width(72.dp))
+        }
+    }
+}
+
+/**
+ * The line being sung (and the next one, dimmed), following the playback position. Asks LRCLIB only while the
+ * notch is open on a song it hasn't seen; empty while loading or when there are no lyrics.
+ */
+@Composable
+private fun LyricsRow(theme: Theme, modifier: Modifier) {
+    val track = MediaRepo.track ?: return
+    LaunchedEffect(track.key) {
+        if (LyricsRepo.currentFor(track) != null) return@LaunchedEffect
+        delay(400) // players send the title before the rest; skipping through songs asks for none
+        LyricsRepo.load(track)
+    }
+    val l = LyricsRepo.currentFor(track)
+    var pos by remember { mutableLongStateOf(MediaRepo.positionMs()) }
+    LaunchedEffect(track.key, MediaRepo.isPlaying, l) {
+        if (l == null || l.synced.isEmpty()) return@LaunchedEffect
+        while (true) {
+            pos = MediaRepo.positionMs()
+            delay(if (MediaRepo.isPlaying) 100 else 500)
+        }
+    }
+    Box(modifier, contentAlignment = Alignment.CenterStart) {
+        when {
+            l == null -> {}
+            l.synced.isNotEmpty() -> {
+                // A little ahead, so a line shows as it starts rather than just after.
+                val index = l.indexAt(pos + 200)
+                AnimatedContent(
+                    index, label = "lyrics",
+                    transitionSpec = {
+                        val down = targetState >= initialState
+                        (slideInVertically { if (down) it / 2 else -it / 2 } + fadeIn()) togetherWith
+                            (slideOutVertically { if (down) -it / 2 else it / 2 } + fadeOut())
+                    },
+                ) { i ->
+                    Column(Modifier.fillMaxWidth()) {
+                        val now = l.synced.getOrNull(i)?.text.orEmpty().ifBlank { "♪" }
+                        val next = l.synced.drop(i + 1).firstOrNull { it.text.isNotBlank() }?.text.orEmpty()
+                        Label(now, theme.primaryText, 14.sp, FontWeight.SemiBold)
+                        Label(next, theme.secondaryText.copy(alpha = theme.secondaryText.alpha * 0.7f), 12.sp)
+                    }
+                }
+            }
+            l.instrumental -> Label("♪  Instrumental", theme.secondaryText, 13.sp)
+            else -> Label("Lyrics aren't synced for this song", theme.secondaryText, 12.sp)
         }
     }
 }

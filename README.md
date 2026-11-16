@@ -39,7 +39,8 @@ Android 12 or newer.
 never wider than it has to be: every time something comes or goes, both sides are measured again and balanced so
 the notch stays centred with no empty gaps.
 
-- **Music:** the album cover on one side, and moving bars or One UI 9 style waves on the other.
+- **Music:** the album cover on one side, and moving bars or One UI 9 style waves on the other. Optionally the
+  line of the lyrics being sung, centred between them.
 - **Live notifications:** timers, calls, navigation, deliveries, downloads and Samsung's Now Bar items, all at once,
   with their icons and live numbers. A lone one splits across the notch, icon on one side and text on the other.
 - **Your own timers and stopwatch**, counting down beside it.
@@ -49,7 +50,8 @@ the notch stays centred with no empty gaps.
 **The open notch** (tap it, or point at it with a mouse or S Pen):
 
 - **Music:** the cover travels into the panel, with title, artist, controls, a seek bar (flat or One UI 9 waves),
-  media volume, and the output button that opens Samsung's own output switcher.
+  media volume, and the output button that opens Samsung's own output switcher. Optional synced lyrics from
+  [LRCLIB](https://lrclib.net) between the cover and the seek bar, for whatever app is playing (Spotify included).
 - **Brightness** slider.
 - **Files:** a shelf you drop files on (drag them onto the notch or share them to "Notch shelf"), then share them
   again, Quick Share them or open them.
@@ -98,8 +100,10 @@ Press and hold the open notch to get back to Settings.
 The notch draws over the status bar through an **accessibility service**, which Android warns can "view and control
 your screen". It uses it to draw the notch and to see which windows are on screen and where (to hide in full-screen
 apps), never what's in them. **Notification access** gives it the music that's playing and your live notifications,
-which stay on the device. The app goes online for one thing only: checking GitHub for its own updates, and
-downloading one when you tap Update. Nothing about you or your device is sent anywhere.
+which stay on the device. The app goes online for its own updates (checking GitHub, and downloading one when you
+tap Update) and, only if you turn on **Show lyrics** (off by default), to ask [LRCLIB](https://lrclib.net) for a
+song's lyrics: just its title, artist, album and length are sent, once per song, and the answers are kept on the
+device. Nothing about you or your device is sent anywhere.
 
 ## How it works
 

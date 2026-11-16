@@ -42,6 +42,7 @@ import com.fonta.dynamicnotch.services.BentoRepo
 import com.fonta.dynamicnotch.services.BrightnessRepo
 import com.fonta.dynamicnotch.services.LiveItem
 import com.fonta.dynamicnotch.services.LiveRepo
+import com.fonta.dynamicnotch.services.LyricsRepo
 import com.fonta.dynamicnotch.services.MediaRepo
 import com.fonta.dynamicnotch.services.NowBarControl
 import com.fonta.dynamicnotch.services.ShelfStore
@@ -106,12 +107,14 @@ data class NotchGeometry(
             val topBarH = max(notchH, (if (compact) 40 else 36) * d)
             val openW: Float
             val openH: Float
+            // Room for two lines of lyrics between the cover and the progress bar.
+            val lyricsH = if (s.showLyrics) (if (compact) 46 else 40) * d else 0f
             if (compact) {
                 openW = min(w - 2 * margin, 440 * d)
-                openH = topBarH + 344 * d
+                openH = topBarH + 344 * d + lyricsH
             } else {
                 openW = max(s.openWidth.toFloat() * d, notchW + 240 * d)
-                openH = max(s.openHeight.toFloat() * d, topBarH + 150 * d)
+                openH = max(s.openHeight.toFloat() * d, topBarH + 150 * d) + lyricsH
             }
             val openLeft = (centerX - openW / 2).coerceIn(margin, max(margin, w - openW - margin))
             return NotchGeometry(
@@ -262,6 +265,30 @@ class NotchService : AccessibilityService(), LifecycleOwner, SavedStateRegistryO
 
         lifecycleScope.launch {
             snapshotFlow { SettingsStore.settings }.distinctUntilChanged().collectLatest { recomputeGeometry(); checkStatusBar() }
+        }
+        // Lyrics for the closed notch: fetched for a song once it has played a few seconds (skipped songs ask nothing).
+        lifecycleScope.launch {
+            snapshotFlow {
+                val s = SettingsStore.settings
+                MediaRepo.track?.takeIf { s.showLyrics && s.lyricsInBar && MediaRepo.isPlaying }
+            }.distinctUntilChanged { a, b -> a?.key == b?.key }.collectLatest { t ->
+                if (t != null && LyricsRepo.currentFor(t) == null) {
+                    kotlinx.coroutines.delay(3000)
+                    LyricsRepo.load(t)
+                }
+            }
+        }
+        // The lyric wing's line, from the playback position; runs only while the wing shows.
+        lifecycleScope.launch {
+            snapshotFlow { WingLayouts.wingLyrics() }.distinctUntilChanged().collectLatest { l ->
+                if (l == null) return@collectLatest
+                while (true) {
+                    // A little ahead, so a line shows as it starts rather than just after.
+                    val i = l.indexAt(MediaRepo.positionMs() + 200)
+                    if (i != LyricsRepo.wingIndex) LyricsRepo.wingIndex = i
+                    kotlinx.coroutines.delay(150)
+                }
+            }
         }
         lifecycleScope.launch {
             snapshotFlow { targetSpec() }.distinctUntilChanged().collectLatest { apply(it) }

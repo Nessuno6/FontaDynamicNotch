@@ -23,6 +23,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -157,8 +159,8 @@ fun NotchRoot() {
         val shapeSpring = if (!open && settled) anim.wings else spring
 
         // Closed, both sides are as wide as the wider wing: the notch stays centred on the camera.
-        val x0Target = if (open) g.openLeft - g.centerX else -(g.notchW / 2 + NotchState.side)
-        val x1Target = if (open) g.openRight - g.centerX else g.notchW / 2 + NotchState.side
+        val x0Target = if (open) g.openLeft - g.centerX else -(g.notchW / 2 + leftWing)
+        val x1Target = if (open) g.openRight - g.centerX else g.notchW / 2 + rightWing
         val hTarget = if (open) g.openH else g.closedH
         val x0State = animateFloatAsState(x0Target, shapeSpring.spec(), label = "x0")
         val x1State = animateFloatAsState(x1Target, shapeSpring.spec(), label = "x1")
@@ -394,6 +396,30 @@ fun NotchRoot() {
 }
 
 /**
+ * The line being sung, centred over the closed notch in an area as wide as the song's longest line; each new line
+ * slides up into place.
+ */
+@Composable
+private fun LyricWing(lyrics: com.fonta.dynamicnotch.services.Lyrics, theme: Theme, modifier: Modifier) {
+    androidx.compose.animation.AnimatedContent(
+        com.fonta.dynamicnotch.services.LyricsRepo.wingIndex, modifier.clipToBounds(), label = "wingLyric", contentAlignment = Alignment.Center,
+        transitionSpec = {
+            val down = targetState >= initialState
+            (androidx.compose.animation.slideInVertically { if (down) it else -it } + androidx.compose.animation.fadeIn()) togetherWith
+                (androidx.compose.animation.slideOutVertically { if (down) -it else it } + androidx.compose.animation.fadeOut())
+        },
+    ) { i ->
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                lyrics.synced.getOrNull(i)?.text.orEmpty().ifBlank { "♪" }, color = theme.primaryText,
+                fontSize = WingLayouts.LYRIC_SP.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/**
  * What sits beside the closed notch, as [WingLayouts] placed it. Each part slides to its new place
  * when the layout changes (something comes or goes), with the wings' spring.
  */
@@ -429,6 +455,8 @@ private fun ClosedWings(g: NotchGeometry, theme: Theme, cx: Float) {
                             if (settings.oneUiWaves) MusicWave(settings.musicBarSpeed.toFloat(), color, MediaRepo.isPlaying, size)
                             else MusicBars(count, settings.musicBarSpeed.toFloat(), color, MediaRepo.isPlaying, size)
                         }
+                        WingPart.Lyric -> WingLayouts.wingLyrics()?.let { LyricWing(it, theme, Modifier.fillMaxSize().padding(horizontal = 9.dp)) }
+                        WingPart.LyricRoom -> {}
                         WingPart.Time -> WingLayouts.timeText(now)?.let { words(it) }
                         WingPart.TimeIcon -> Glyph(Ic.timer, null, Modifier.size(18.dp), theme.primaryText)
                         is WingPart.Live -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {

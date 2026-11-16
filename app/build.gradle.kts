@@ -15,8 +15,8 @@ android {
         minSdk = 31
         targetSdk = 37
         // Matches the GitHub release tag (v<versionName>): the in-app update check compares them.
-        versionCode = 6
-        versionName = "0.2.4"
+        versionCode = 7
+        versionName = "0.2.5"
     }
 
     compileOptions {

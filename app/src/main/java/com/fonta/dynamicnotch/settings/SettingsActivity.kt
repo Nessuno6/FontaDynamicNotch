@@ -676,6 +676,14 @@ private fun Music(s: AppSettings) {
             TextButton({ MediaRepo.attach(context) }) { Text("Reconnect") }
         }
         SwitchRow("Scroll long titles", s.marqueeEnabled) { v -> set { it.copy(marqueeEnabled = v) } }
+        SwitchRow(
+            "Show lyrics", s.showLyrics,
+            "Synced lyrics between the cover and the progress bar, from LRCLIB (lrclib.net). The song's title, artist, album and length are sent there when you open the notch on a song, once per song: answers are kept on this device.",
+        ) { v -> set { it.copy(showLyrics = v) } }
+        if (s.showLyrics) SwitchRow(
+            "Lyrics in the closed notch", s.lyricsInBar,
+            "The line being sung beside the closed notch while music plays, instead of only when it's open. Lyrics are then fetched for every song that plays a few seconds, not only the ones you open the notch on.",
+        ) { v -> set { it.copy(lyricsInBar = v) } }
     }
     Section("Music bars") {
         SwitchRow("One UI 9 waves", s.oneUiWaves, "A moving wave instead of the bars beside the closed notch, and a wavy progress bar while music plays, as on One UI 9.") { v -> set { it.copy(oneUiWaves = v) } }

@@ -47,6 +47,7 @@ data class TrackInfo(
     val key: String,
     val title: String,
     val artist: String,
+    val album: String,
     val durationMs: Long,
     val packageName: String,
 )
@@ -104,6 +105,7 @@ object MediaRepo {
     fun attach(context: Context) {
         val appContext = context.applicationContext
         app = appContext
+        LyricsRepo.init(appContext)
         detach()
         val m = appContext.getSystemService(MediaSessionManager::class.java)
         val c = ComponentName(appContext, MediaListenerService::class.java)
@@ -178,7 +180,7 @@ object MediaRepo {
             ?: md.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE) ?: ""
         val album = md.getString(MediaMetadata.METADATA_KEY_ALBUM) ?: ""
         val key = "${c.packageName}|$title|$artist|$album"
-        track = TrackInfo(key, title, artist, md.getLong(MediaMetadata.METADATA_KEY_DURATION), c.packageName)
+        track = TrackInfo(key, title, artist, album, md.getLong(MediaMetadata.METADATA_KEY_DURATION), c.packageName)
 
         val st = c.playbackState
         val nowPlaying = st?.state == PlaybackState.STATE_PLAYING
