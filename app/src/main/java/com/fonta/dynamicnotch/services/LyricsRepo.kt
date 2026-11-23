@@ -41,6 +41,14 @@ data class Lyrics(val synced: List<LyricLine>, val plain: String?, val instrumen
         }
         return found
     }
+
+    /** Index of the line to show at [positionMs], delayed by [delaySeconds] so lyrics wait for audio output. */
+    fun indexAtPlayback(positionMs: Long, delaySeconds: Double = DEFAULT_DELAY_SECONDS): Int =
+        indexAt(positionMs - (delaySeconds * 1000.0).toLong())
+
+    companion object {
+        const val DEFAULT_DELAY_SECONDS = 1.1
+    }
 }
 
 /**

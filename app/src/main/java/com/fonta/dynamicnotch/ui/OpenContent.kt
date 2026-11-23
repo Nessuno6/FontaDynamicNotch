@@ -60,6 +60,7 @@ import com.fonta.dynamicnotch.data.TopModule
 import com.fonta.dynamicnotch.notch.CoverSlot
 import com.fonta.dynamicnotch.notch.NotchGeometry
 import com.fonta.dynamicnotch.notch.NotchState
+import com.fonta.dynamicnotch.notch.OpenScreen
 import com.fonta.dynamicnotch.services.AudioRepo
 import com.fonta.dynamicnotch.services.BrightnessRepo
 import com.fonta.dynamicnotch.services.LiveRepo
@@ -82,23 +83,17 @@ fun OpenContent(g: NotchGeometry, theme: Theme, settings: AppSettings) {
     MaterialTheme(colorScheme = darkColorScheme()) {
         Column(Modifier.fillMaxSize()) {
             TopBar(g, theme, settings)
-            val screen = when {
-                ToolsStore.isRinging -> "alarm"
-                NotchState.tab == NotchTab.files -> "files"
-                NotchState.tab == NotchTab.live && LiveRepo.items.isNotEmpty() -> "live"
-                NotchState.tab == NotchTab.bento && settings.bentoInNotch -> "bento"
-                else -> "home"
-            }
+            val screen = NotchState.openScreen(settings)
             Crossfade(
                 screen, animationSpec = settings.animations.tabSwitch.spec(), label = "tab",
                 modifier = Modifier.weight(1f).padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 14.dp),
             ) { s ->
                 when (s) {
-                    "alarm" -> AlarmView(theme)
-                    "files" -> FilesTab(theme, g.compact)
-                    "live" -> LiveTab(theme, g.compact)
-                    "bento" -> BentoTab(theme, g.compact)
-                    else -> HomeTab(g, theme, settings)
+                    OpenScreen.alarm -> AlarmView(theme)
+                    OpenScreen.files -> FilesTab(theme, g.compact)
+                    OpenScreen.live -> LiveTab(theme, g.compact)
+                    OpenScreen.bento -> BentoTab(theme, g.compact)
+                    OpenScreen.home -> HomeTab(g, theme, settings)
                 }
             }
         }
@@ -238,7 +233,7 @@ private fun MediaPanel(theme: Theme, settings: AppSettings, compact: Boolean, mo
                     TrackText(theme, settings, context)
                 }
             }
-            if (settings.showLyrics && track != null) LyricsRow(theme, Modifier.weight(1f).fillMaxWidth().padding(horizontal = 4.dp))
+            if (settings.showLyrics && track != null) LyricsRow(theme, settings.lyricsDelaySeconds, Modifier.weight(1f).fillMaxWidth().padding(horizontal = 4.dp))
             else Spacer(Modifier.weight(1f))
             if (track != null) {
                 ProgressRow(theme)
@@ -251,7 +246,7 @@ private fun MediaPanel(theme: Theme, settings: AppSettings, compact: Boolean, mo
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
                 VolumeRow(theme, showName = true)
                 TrackText(theme, settings, context)
-                if (settings.showLyrics && track != null) LyricsRow(theme, Modifier.fillMaxWidth().height(36.dp))
+                if (settings.showLyrics && track != null) LyricsRow(theme, settings.lyricsDelaySeconds, Modifier.fillMaxWidth().height(36.dp))
                 if (track != null) {
                     ProgressRow(theme)
                     Controls(theme, Modifier.fillMaxWidth())
@@ -331,7 +326,7 @@ private fun VolumeRow(theme: Theme, showName: Boolean) {
  * notch is open on a song it hasn't seen; empty while loading or when there are no lyrics.
  */
 @Composable
-private fun LyricsRow(theme: Theme, modifier: Modifier) {
+private fun LyricsRow(theme: Theme, delaySeconds: Double, modifier: Modifier) {
     val track = MediaRepo.track ?: return
     LaunchedEffect(track.key) {
         if (LyricsRepo.currentFor(track) != null) return@LaunchedEffect
@@ -351,8 +346,7 @@ private fun LyricsRow(theme: Theme, modifier: Modifier) {
         when {
             l == null -> {}
             l.synced.isNotEmpty() -> {
-                // A little ahead, so a line shows as it starts rather than just after.
-                val index = l.indexAt(pos + 200)
+                val index = l.indexAtPlayback(pos, delaySeconds)
                 AnimatedContent(
                     index, label = "lyrics",
                     transitionSpec = {

@@ -680,10 +680,21 @@ private fun Music(s: AppSettings) {
             "Show lyrics", s.showLyrics,
             "Synced lyrics between the cover and the progress bar, from LRCLIB (lrclib.net). The song's title, artist, album and length are sent there when you open the notch on a song, once per song: answers are kept on this device.",
         ) { v -> set { it.copy(showLyrics = v) } }
-        if (s.showLyrics) SwitchRow(
-            "Lyrics in the closed notch", s.lyricsInBar,
-            "The line being sung beside the closed notch while music plays, instead of only when it's open. Lyrics are then fetched for every song that plays a few seconds, not only the ones you open the notch on.",
-        ) { v -> set { it.copy(lyricsInBar = v) } }
+        if (s.showLyrics) {
+            SwitchRow(
+                "Lyrics in the closed notch", s.lyricsInBar,
+                "The line being sung beside the closed notch while music plays, instead of only when it's open. Lyrics are then fetched for every song that plays a few seconds, not only the ones you open the notch on.",
+            ) { v -> set { it.copy(lyricsInBar = v) } }
+            SliderRow(
+                "Lyrics delay", s.lyricsDelaySeconds, -1.0f..3.0f,
+                { v -> "%+.1f s".format(if (v > -0.05 && v < 0.05) 0.0 else v) }, steps = 39,
+            ) { v -> set { it.copy(lyricsDelaySeconds = ((v * 10.0).roundToInt() / 10.0).let { d -> if (d == 0.0) 0.0 else d }) } }
+            Text(
+                "Delays synced lyrics behind playback position. Increase if lines appear early (for example with Bluetooth audio).",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+        }
     }
     Section("Music bars") {
         SwitchRow("One UI 9 waves", s.oneUiWaves, "A moving wave instead of the bars beside the closed notch, and a wavy progress bar while music plays, as on One UI 9.") { v -> set { it.copy(oneUiWaves = v) } }

@@ -129,6 +129,7 @@ data class NotchGeometry(
 }
 
 enum class RightWing { none, bars, time, live }
+enum class OpenScreen { home, files, live, bento, alarm }
 
 /** Shared notch state: the service owns the window, the Compose UI reads and drives this. */
 object NotchState {
@@ -166,6 +167,15 @@ object NotchState {
 
     /** Where the open panel's album cover sits (window pixels), while that panel shows one. */
     var openCoverRect by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
+
+    /** Active page inside the open notch (single source of truth for UI and cover transitions). */
+    fun openScreen(settings: AppSettings): OpenScreen = when {
+        ToolsStore.isRinging -> OpenScreen.alarm
+        tab == NotchTab.files -> OpenScreen.files
+        tab == NotchTab.live && LiveRepo.items.isNotEmpty() -> OpenScreen.live
+        tab == NotchTab.bento && settings.bentoInNotch -> OpenScreen.bento
+        else -> OpenScreen.home
+    }
 
     /** The BentoBar tile at a point of the closed notch, with its place on screen. */
     fun bentoTileAt(x: Float, y: Float): Pair<BentoItem, android.graphics.Rect>? = layout.tileAt(x, y, geometry.closedH)
@@ -283,8 +293,7 @@ class NotchService : AccessibilityService(), LifecycleOwner, SavedStateRegistryO
             snapshotFlow { WingLayouts.wingLyrics() }.distinctUntilChanged().collectLatest { l ->
                 if (l == null) return@collectLatest
                 while (true) {
-                    // A little ahead, so a line shows as it starts rather than just after.
-                    val i = l.indexAt(MediaRepo.positionMs() + 200)
+                    val i = l.indexAtPlayback(MediaRepo.positionMs(), SettingsStore.settings.lyricsDelaySeconds)
                     if (i != LyricsRepo.wingIndex) LyricsRepo.wingIndex = i
                     kotlinx.coroutines.delay(150)
                 }
@@ -457,12 +466,18 @@ class NotchService : AccessibilityService(), LifecycleOwner, SavedStateRegistryO
         v.visibility = if (spec.shown) View.VISIBLE else View.INVISIBLE
         // The glass is a window of its own: it goes with the notch (it keeps its last frame otherwise).
         if (!spec.shown) NotchState.glass?.frame(0f, 0f, 0f, 0f, 0f)
+        val g = NotchState.geometry
         val region = when {
             !spec.shown -> Region()
-            spec.open -> null   // the whole window: a tap outside the open notch closes it
+            spec.open -> Region(0, 0, max(v.width, g.screenW), max(v.height, g.screenH))
             else -> Region(spec.left, 0, spec.right, spec.bottom)
         }
         runCatching { v.rootSurfaceControl?.setTouchableRegion(region) }
+        // Passing null to reset the touchable region can leave InputDispatcher stuck on the prior closed band;
+        // apply an explicit full-screen Region while open and force a window relayout so outside taps work immediately.
+        v.requestLayout()
+        v.invalidate()
+        params?.let { runCatching { wm.updateViewLayout(v, it) } }
     }
 
     /**

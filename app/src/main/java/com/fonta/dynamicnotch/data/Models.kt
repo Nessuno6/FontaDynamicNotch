@@ -109,6 +109,8 @@ data class AppSettings(
     val showLyrics: Boolean = false,
     /** Also the line being sung beside the closed notch (needs [showLyrics]); lyrics are then fetched for every song played. */
     val lyricsInBar: Boolean = false,
+    /** Seconds to delay synced lyrics behind playback position (positive waits longer, e.g. for Bluetooth audio). */
+    val lyricsDelaySeconds: Double = 1.1,
     // Timers
     val alarmSoundUri: String = "",
     val alarmVolume: Double = 1.0,

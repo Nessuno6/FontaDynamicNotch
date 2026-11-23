@@ -259,7 +259,8 @@ fun NotchRoot() {
                             val tile = NotchState.bentoTileAt(down.position.x, down.position.y)
                             // Tapping the album/media cover beside the closed notch opens the player directly.
                             val onCover = NotchState.isCoverAt(down.position.x, down.position.y)
-                            if (waitForUpOrCancellation(PointerEventPass.Initial) != null) {
+                            val up = waitForUpOrCancellation(PointerEventPass.Initial)
+                            if (up != null) {
                                 when {
                                     tile != null -> BentoRepo.open(tile.first, tile.second)
                                     onNotch && onCover -> MediaRepo.openPlayer(context)
@@ -360,12 +361,14 @@ fun NotchRoot() {
             var lastSlot by remember { mutableStateOf<Rect?>(null) }
             if (slot != null) SideEffect { lastSlot = slot }
             val travel by animateFloatAsState(if (open) 1f else 0f, spring.spec(), label = "cover")
+            val isHomeScreen = NotchState.openScreen(settings) == OpenScreen.home
             val coverAlpha by animateFloatAsState(
                 when {
-                    open -> if (slot != null) 1f else 0f
+                    open -> if (isHomeScreen && (slot != null || lastSlot != null || (NotchState.layout.cover != null && travel < 0.05f))) 1f else 0f
                     else -> if (NotchState.layout.cover != null) 1f else 0f
                 },
-                tween(if (open && slot == null) 260 else 140), label = "coverAlpha",
+                if (open) settings.animations.tabSwitch.spec() else tween(140),
+                label = "coverAlpha",
             )
             if (coverAlpha > 0.01f) {
                 val small = max(12 * d, g.closedH - 12 * d)
